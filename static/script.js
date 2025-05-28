@@ -23,22 +23,27 @@ document.addEventListener("DOMContentLoaded", function () {
 	const DEFAULT_COEFF_VALUE = 0; // Для полиномов
 	const DEFAULT_L_START_VALUE = 0.1;
 
+	// --- Функции для управления состоянием загрузки ---
 	function showLoader() {
 		if (loaderContainer) loaderContainer.style.display = "flex";
 		if (calculateButton) {
 			calculateButton.disabled = true;
-			// calculateButton.classList.add("loading"); // Если есть спец. стиль для кнопки в загрузке
-			calculateButton.textContent = "Расчет..."; // Меняем текст кнопки
+			calculateButton.textContent = "Расчет...";
 		}
-		fillButtons.forEach(button => {
-			if (button) button.disabled = true;
-		});
-		// Скрываем предыдущие результаты
+		// Блокируем кнопки заполнения
+		[fillRandomVariablesButton, fillRandomFButton, fillRandomZButton].forEach(
+			button => {
+				if (button) button.disabled = true;
+			}
+		);
+
+		// Очистка и скрытие предыдущих результатов
+		resultsArea.style.display = "block"; // Показываем блок результатов, чтобы было видно статус/лоадер
 		mainPlotImg.style.display = "none";
-		coeffsInfoEl.textContent = "";
-		const radarContainer = document.getElementById("radarChartsContainer");
 		if (radarContainer) radarContainer.innerHTML = "";
-		statusMessageEl.textContent = ""; // Очищаем старое статусное сообщение
+		coeffsInfoEl.textContent = "";
+		statusMessageEl.textContent =
+			"Выполняется расчет... Пожалуйста, подождите."; // Начальное сообщение статуса
 		statusMessageEl.className = "status";
 	}
 
@@ -46,16 +51,18 @@ document.addEventListener("DOMContentLoaded", function () {
 		if (loaderContainer) loaderContainer.style.display = "none";
 		if (calculateButton) {
 			calculateButton.disabled = false;
-			// calculateButton.classList.remove("loading");
-			calculateButton.textContent = "Рассчитать"; // Возвращаем исходный текст
+			calculateButton.textContent = "Рассчитать";
 		}
-		fillButtons.forEach(button => {
-			if (button) button.disabled = false;
-		});
-		if (!isError) {
-			// Если не было ошибки, можно показать resultsArea
-			resultsArea.style.display = "block";
-		}
+		// Разблокируем кнопки заполнения
+		[fillRandomVariablesButton, fillRandomFButton, fillRandomZButton].forEach(
+			button => {
+				if (button) button.disabled = false;
+			}
+		);
+
+		// Если не было ошибки, resultsArea уже отображается (из showLoader).
+		// Если была ошибка, то resultsArea тоже отображается, но с сообщением об ошибке.
+		// Так что дополнительно управлять display для resultsArea здесь не обязательно.
 	}
 
 	function fillRandomVariables() {
@@ -266,14 +273,7 @@ document.addEventListener("DOMContentLoaded", function () {
 	// --- Обработчики кнопок ---
 	if (calculateButton) {
 		calculateButton.addEventListener("click", async function () {
-			showLoader(); 
-			calculateButton.disabled = true;
-			statusMessageEl.textContent =
-				"Выполняется расчет... Пожалуйста, подождите.";
-			statusMessageEl.className = "status";
-			resultsArea.style.display = "block";
-			mainPlotImg.style.display = "none";
-			coeffsInfoEl.textContent = "";
+			showLoader(); // Показываем лоадер и блокируем кнопки
 
 			const start_conditions = [];
 			for (let i = 0; i < NUM_L_VARIABLES; i++) {
@@ -283,7 +283,6 @@ document.addEventListener("DOMContentLoaded", function () {
 				);
 			}
 
-			// Полиномы f_i и z_i всегда 3-й степени, значит 4 коэффициента
 			const numCoeffsPerPoly = 4;
 			const f_coeffs = getTableData(NUM_F_FUNCTIONS, "f", numCoeffsPerPoly);
 			const z_coeffs = getTableData(NUM_Z_FUNCTIONS, "z", numCoeffsPerPoly);
@@ -291,7 +290,6 @@ document.addEventListener("DOMContentLoaded", function () {
 			const l_limits_payload = [];
 			for (let i = 0; i < NUM_L_VARIABLES; i++) {
 				const limitInputEl = document.getElementById(`l_limit_${i}`);
-				// Убедись, что дефолтное значение разумное, если поле пустое или некорректное
 				l_limits_payload.push(
 					limitInputEl ? parseFloat(limitInputEl.value) || 1.0 : 1.0
 				);
@@ -299,14 +297,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
 			const payload = {
 				start_conditions: start_conditions,
-				// Внутренние полиномы (f_i), которые пользователь ввел.
-				// Сервер будет их проверять и, если нужно, генерировать случайные.
 				initial_f_coeffs: f_coeffs,
-				// Внешние полиномы (z_i), которые я раньше называл q_coeffs
 				z_coeffs: z_coeffs,
 				l_limits: l_limits_payload,
-
-				// Параметры для проверки и генерации f_coeffs (если initial_f_coeffs не пройдут)
 				poly_output_lower_bound: parseFloat(
 					document.getElementById("poly_output_lower_bound").value
 				),
@@ -329,7 +322,6 @@ document.addEventListener("DOMContentLoaded", function () {
 					document.getElementById("internal_poly_check_granularity").value
 				),
 			};
-			// console.log("Payload to server:", JSON.stringify(payload, null, 2)); // Для отладки
 
 			try {
 				const response = await fetch("/calculate", {
@@ -340,16 +332,19 @@ document.addEventListener("DOMContentLoaded", function () {
 				const result = await response.json();
 
 				if (response.ok) {
-					hideLoader(false);
+					// statusMessageEl и resultsArea уже настроены в showLoader,
+					// здесь только обновляем контент и класс статуса
 					statusMessageEl.textContent = result.message || "Расчет завершен!";
 					statusMessageEl.className = "status success";
+
 					if (result.main_plot_url) {
 						mainPlotImg.src =
 							result.main_plot_url + "?t=" + new Date().getTime();
 						mainPlotImg.style.display = "block";
 					}
-					if (result.radar_plot_urls) {
-						radarContainer.innerHTML = "";
+					if (result.radar_plot_urls && radarContainer) {
+						// Проверяем radarContainer
+						radarContainer.innerHTML = ""; // Очищаем перед добавлением новых
 						result.radar_plot_urls.forEach(radarUrl => {
 							const img = document.createElement("img");
 							img.src = radarUrl + "?t=" + new Date().getTime();
@@ -357,7 +352,6 @@ document.addEventListener("DOMContentLoaded", function () {
 							radarContainer.appendChild(img);
 						});
 					}
-
 					if (result.final_f_coeffs_snippet) {
 						// Изменено имя поля
 						coeffsInfoEl.innerHTML = `<b>Пример финальных коэффициентов для первых 5 внутренних полиномов (f_i):</b><br> ${JSON.stringify(
@@ -365,20 +359,18 @@ document.addEventListener("DOMContentLoaded", function () {
 						)}`;
 					}
 				} else {
-					hideLoader(true);
 					statusMessageEl.textContent =
 						"Ошибка сервера: " +
 						(result.error || response.statusText || "Неизвестная ошибка");
 					statusMessageEl.className = "status error";
 				}
 			} catch (error) {
-				hideLoader(true);
 				statusMessageEl.textContent =
 					"Сетевая ошибка или ошибка клиента: " + error.message;
 				statusMessageEl.className = "status error";
 				console.error("Fetch error:", error);
 			} finally {
-				calculateButton.disabled = false;
+				hideLoader();
 			}
 		});
 	}
