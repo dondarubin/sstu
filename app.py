@@ -627,7 +627,7 @@ class CalculationService:
             colors = cm.get_cmap("tab20", num_lines)
         else:
             colors = cm.get_cmap("nipy_spectral", num_lines)
-        full_labels_for_legend = [f"Характеристика x{i+1}" for i in range(num_lines)]
+        full_labels_for_legend = [f"Характеристика {i+1}" for i in range(num_lines)]
         short_labels = [f"L{i + 1}" for i in range(num_lines)]
         short_labels_for_annotation = [f"L{i+1}" for i in range(num_lines)]
         for i in range(num_lines):
