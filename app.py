@@ -188,6 +188,8 @@ class CalculationService:
         radar_plot_urls = []
         num_L_variables = Y_solution.shape[1]
 
+        short_radar_labels = [f"x{i + 1}" for i in range(num_L_variables)]
+
         # Используем L_VARIABLE_NAMES_SERVER для меток
         radar_labels = L_VARIABLE_NAMES[
             :num_L_variables
@@ -209,7 +211,7 @@ class CalculationService:
             if sol_index < len(X_ode) and sol_index < len(Y_solution):
                 data_slice = Y_solution[sol_index, :]
                 slice_time = X_ode[sol_index]
-                radar_title = f"Срез L при t={slice_time:.1f}"
+                radar_title = f"Срез L_i при t={slice_time:.1f}"
 
                 radar_filename = f"radar_plot_{i}_{timestamp}.png"
                 radar_save_path = os.path.join(static_images_dir, radar_filename)
@@ -220,7 +222,7 @@ class CalculationService:
 
                 self._save_radar_plot(
                     data_slice,
-                    radar_labels,
+                    short_radar_labels,
                     current_radar_max_values,
                     radar_title,
                     radar_save_path,
@@ -625,22 +627,32 @@ class CalculationService:
             colors = cm.get_cmap("tab20", num_lines)
         else:
             colors = cm.get_cmap("nipy_spectral", num_lines)
-
+        full_labels_for_legend = [f"Характеристика x{i+1}" for i in range(num_lines)]
+        short_labels = [f"L{i + 1}" for i in range(num_lines)]
+        short_labels_for_annotation = [f"L{i+1}" for i in range(num_lines)]
         for i in range(num_lines):
-            var_key = str(i + 1)
+            current_color = colors(i / float(num_lines -1 if num_lines > 1 else 1)) # Нормализация индекса цвета
+            label_name = short_labels[i]
             label_name = (
                 L_VARIABLE_NAMES[i] if i < len(L_VARIABLE_NAMES) else f"L{i + 1}"
             )
+            
+            plt.plot(X, Y[:, i], label=full_labels_for_legend[i], color=current_color, linewidth=1.5)
 
-            plt.plot(X, Y[:, i], label=label_name, color=colors(i / float(num_lines)))
+            # plt.plot(X, Y[:, i], label=label_name, color=colors(i / float(num_lines)))
 
         plt.legend(
-            bbox_to_anchor=(1.05, 1),
+            bbox_to_anchor=(1.02, 1),
             loc="upper left",
             borderaxespad=0.0,
             fontsize="small",
         )
-        plt.tight_layout(rect=[0, 0, 0.80, 1])
+
+        plt.grid(True, linestyle="--", alpha=0.7)
+        plt.title(
+            "Динамика изменения характеристик L_i", fontsize=14
+        )  # Обновим заголовок
+        plt.tight_layout(rect=[0, 0, 0.88, 1])  # Откорректируй rect для легенды L1-L14
         plt.savefig(save_path)
         plt.clf()
         plt.close()
