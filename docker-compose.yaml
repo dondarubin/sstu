@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sstu_quality_app_web
+    ports:
+      - "9090:9090"
+    volumes:
+      - .:/app
+    environment:
+      - FLASK_ENV=development
+      - PYTHONUNBUFFERED=1

@@ -3,11 +3,8 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Моделирование Системы</title>
-		<link
-			href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap"
-			rel="stylesheet"
-		/>
+		<title>Анализ Качества ПО</title>
+		<!-- Google Fonts (Inter) уже подключен через @import в CSS -->
 		<link
 			rel="stylesheet"
 			href="{{ url_for('static', filename='style.css') }}"
@@ -15,20 +12,19 @@
 	</head>
 	<body>
 		<header>
-			<h1>Моделирование и Анализ Системы</h1>
+			<h1>Система Анализа Качества Программного Обеспечения</h1>
 		</header>
 
 		<div class="main-container">
 			<div class="content-block" id="variablesBlock">
-				<h2>Параметры Модели (L<sub>i</sub>)</h2>
-				<table class="var-table" id="variablesTable">
+				<h2>Параметры Модели (L<sub>i</sub>) - Характеристики Качества ПО</h2>
+				<table class="data-table var-table" id="variablesTable">
 					<thead>
 						<tr>
-							<th>Название переменной (L<sub>i</sub>)</th>
-							<th>Начальное значение</th>
-							<!-- Предельное и Минимальное пока не используем в расчетах, но оставим для вида -->
-							<th>Предельное значение</th>
-							<th>Минимальное значение</th>
+							<th>Название характеристики (L<sub>i</sub>)</th>
+							<th>Начальное значение (0-1)</th>
+							<th>Предельное значение (0-1)</th>
+							<th>Минимальное значение (0-1)</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -38,16 +34,16 @@
 			</div>
 
 			<div class="content-block" id="fFunctionsBlock">
-				<h2>Внутренние Функции (f<sub>i</sub>)</h2>
+				<h2>Внутренние Функции Взаимовлияния (f<sub>i</sub>)</h2>
 				<p>
-					Полиномы вида: c<sub>3</sub>x<sup>3</sup> + c<sub>2</sub>x<sup>2</sup>
-					+ c<sub>1</sub>x + c<sub>0</sub>. Вводите коэффициенты c<sub>3</sub>,
-					c<sub>2</sub>, c<sub>1</sub>, c<sub>0</sub>.
+					Описывают, как одни характеристики качества влияют на другие. Полиномы
+					вида: c<sub>3</sub>x<sup>3</sup> + c<sub>2</sub>x<sup>2</sup>
+					+ c<sub>1</sub>x + c<sub>0</sub>.
 				</p>
-				<table class="func-table" id="fFunctionsTable">
+				<table class="data-table func-table" id="fFunctionsTable">
 					<thead>
 						<tr>
-							<th>Функция</th>
+							<th>Функция f<sub>i</sub>(L<sub>k</sub>)</th>
 							<th>Коэф. c<sub>3</sub> (при x<sup>3</sup>)</th>
 							<th>Коэф. c<sub>2</sub> (при x<sup>2</sup>)</th>
 							<th>Коэф. c<sub>1</sub> (при x)</th>
@@ -55,22 +51,23 @@
 						</tr>
 					</thead>
 					<tbody>
-						<!-- Строки для f1-f151 будут добавлены JS -->
+						<!-- Строки для f1-f... будут добавлены JS -->
 					</tbody>
 				</table>
 			</div>
 
 			<div class="content-block" id="zFunctionsBlock">
-				<h2>Внешние Функции (z<sub>i</sub>)</h2>
+				<h2>Внешние Факторы (z<sub>i</sub>)</h2>
 				<p>
-					Полиномы вида: c<sub>3</sub>t<sup>3</sup> + c<sub>2</sub>t<sup>2</sup>
-					+ c<sub>1</sub>t + c<sub>0</sub>. Вводите коэффициенты c<sub>3</sub>,
-					c<sub>2</sub>, c<sub>1</sub>, c<sub>0</sub>.
+					Описывают внешние воздействия на систему (например, изменения рынка,
+					новые технологии). Полиномы от времени t: c<sub>3</sub>t<sup>3</sup> +
+					c<sub>2</sub>t<sup>2</sup>
+					+ c<sub>1</sub>t + c<sub>0</sub>.
 				</p>
-				<table class="func-table" id="zFunctionsTable">
+				<table class="data-table func-table" id="zFunctionsTable">
 					<thead>
 						<tr>
-							<th>Функция</th>
+							<th>Функция z<sub>i</sub>(t)</th>
 							<th>Коэф. c<sub>3</sub> (при t<sup>3</sup>)</th>
 							<th>Коэф. c<sub>2</sub> (при t<sup>2</sup>)</th>
 							<th>Коэф. c<sub>1</sub> (при t)</th>
@@ -78,7 +75,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						<!-- Строки для z1-z5 будут добавлены JS -->
+						<!-- Строки для z1-z... будут добавлены JS -->
 					</tbody>
 				</table>
 			</div>
@@ -86,14 +83,14 @@
 			<div class="content-block" id="generationParamsBlock">
 				<h2>Параметры Проверки и Генерации Внутренних Функций f<sub>i</sub></h2>
 				<p>
-					Если введенные коэффициенты для f<sub>i</sub> не проходят проверку на
-					неотрицательность, сервер попытается найти подходящие случайные
-					коэффициенты.
+					Если введенные коэффициенты для f<sub>i</sub> не проходят проверку
+					(например, на неотрицательность производных или самих значений),
+					сервер попытается найти подходящие случайные коэффициенты.
 				</p>
 				<div class="form-grid">
 					<div>
 						<label for="poly_output_lower_bound"
-							>Нижняя граница для значения f<sub>i</sub> (>=):</label
+							>Нижняя граница для значения f<sub>i</sub>(x) (>=):</label
 						>
 						<input
 							type="number"
@@ -104,14 +101,13 @@
 					</div>
 					<div>
 						<label for="max_iterations_coeff_search"
-							>Макс. итераций поиска коэфф. f<sub>i</sub> (если нужны
-							случайные):</label
+							>Макс. итераций поиска коэфф. f<sub>i</sub>:</label
 						>
 						<input
 							type="number"
 							id="max_iterations_coeff_search"
-							value="100000"
-							min="10"
+							value="10000"
+							min="100"
 						/>
 					</div>
 					<div>
@@ -121,8 +117,8 @@
 						<input
 							type="number"
 							id="internal_coeff_min_random"
-							value="0"
-							step="0.1"
+							value="-0.05"
+							step="0.01"
 						/>
 					</div>
 					<div>
@@ -132,19 +128,19 @@
 						<input
 							type="number"
 							id="internal_coeff_max_random"
-							value="0.2"
-							step="0.1"
+							value="0.6"
+							step="0.01"
 						/>
 					</div>
 				</div>
 				<h4>
 					Диапазон проверки значений внутренних полиномов
-					f<sub>i</sub>(L<sub>j</sub>)
+					f<sub>i</sub>(L<sub>k</sub>)
 				</h4>
 				<div class="form-grid">
 					<div>
 						<label for="internal_poly_check_range_min"
-							>Мин. значение аргумента L<sub>j</sub> для проверки:</label
+							>Мин. значение аргумента L<sub>k</sub> для проверки:</label
 						>
 						<input
 							type="number"
@@ -155,7 +151,7 @@
 					</div>
 					<div>
 						<label for="internal_poly_check_range_max"
-							>Макс. значение аргумента L<sub>j</sub> для проверки:</label
+							>Макс. значение аргумента L<sub>k</sub> для проверки:</label
 						>
 						<input
 							type="number"
@@ -171,46 +167,59 @@
 						<input
 							type="number"
 							id="internal_poly_check_granularity"
-							value="5"
-							min="2"
+							value="15"
+							min="3"
 						/>
 					</div>
 				</div>
 			</div>
 
 			<div class="control-buttons">
-				<button id="fillRandomButton">Заполнить случайными значениями</button>
+				<button id="fillRandomVariablesButton">Случ. L<sub>i</sub></button>
+				<button id="fillRandomFButton">Случ. f<sub>i</sub></button>
+				<button id="fillRandomZButton">Случ. z<sub>i</sub></button>
 				<button id="calculateButton" class="action-button">Рассчитать</button>
 			</div>
 
 			<div class="results-section" id="resultsArea" style="display: none">
-				<h2 style="text-align: center">Результаты</h2>
+				<h2>Результаты Моделирования</h2>
 				<p id="statusMessage" class="status"></p>
 				<div class="image-display">
 					<img
 						id="mainPlot"
 						src=""
-						alt="Основной график модели"
+						alt="Основной график изменения характеристик качества ПО"
 						style="display: none"
 					/>
+				</div>
+				<div id="radarChartsContainer" class="image-display">
+					<!-- Сюда JS будет добавлять img теги для радарных диаграмм -->
 				</div>
 				<div id="coeffsInfo" class="coeffs-display"></div>
 			</div>
 		</div>
 
 		<script>
-			// Переменные из Python для JS
+			// Переменные из Python для JS (должны соответствовать NUM_... в app.py)
 			const NUM_L_VARIABLES = 14; // L1-L14
-			const NUM_F_FUNCTIONS = {{ NUM_INTERNAL_POLYNOMIALS }}; // f1-f151
-			const NUM_Z_FUNCTIONS = {{ NUM_EXTERNAL_Q_POLYNOMIALS }}; // z1-z5 (бывшие q_coeffs)
-			// Названия переменных L_i (можно расширить, если есть конкретные)
+			const NUM_F_FUNCTIONS = {{ NUM_INTERNAL_POLYNOMIALS }};
+			const NUM_Z_FUNCTIONS = {{ NUM_EXTERNAL_Q_POLYNOMIALS }};
+
 			const L_VARIABLE_NAMES = [
-			    "Эффективность функционирования хранилища данных", "Качество программного обеспечения (ПО)",
-			    "Корректность ПО", "Надежность программного обеспечения", "Доступность программного обеспечения",
-			    "Возможность интенсивного использования ПО", "Прослеживаемость ПО", "Функциональная полнота ПО",
-			    "Обеспечение требуемой последовательности работ при проектировании хранилища", "Практичность ПО",
-			    "Устойчивость к ошибкам данных программного обеспечения", "Эффективность выполнения транзакций",
-			    "Степень мотивации персонала, осуществляющего эксплуатацию хранилища данных", "Удобство тестирования ПО"
+				"Скорость развертывания новых версий (Deployment Velocity)",
+				"Время восстановления после сбоя (Mean Time to Recovery - MTTR)",
+				"Уровень удовлетворенности пользователей (User Satisfaction Score)",
+				"Покрытие кода тестами (Test Coverage Percentage)",
+				"Количество критических уязвимостей (Critical Vulnerabilities Count)",
+				"Производительность под нагрузкой (Performance Under Load)",
+				"Масштабируемость системы (System Scalability)",
+				"Качество документации (Documentation Quality Score)",
+				"Простота интеграции с другими системами (Integration Simplicity)",
+				"Стоимость владения (Total Cost of Ownership - TCO)",
+				"Адаптивность к изменениям требований (Change Adaptability)",
+				"Уровень технического долга (Technical Debt Level)",
+				"Вовлеченность команды разработки (Developer Team Engagement)",
+				"Инновационный потенциал продукта (Product Innovation Potential)"
 			];
 		</script>
 		<script src="{{ url_for('static', filename='script.js') }}"></script>

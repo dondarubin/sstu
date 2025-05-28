@@ -1,4 +1,3 @@
-# File: matlabiki_solution/app.py
 import matplotlib
 
 matplotlib.use("Agg")  # Важно для работы Matplotlib в Flask без GUI
@@ -6,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import numpy as np
 from scipy.integrate import odeint
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, url_for
 from flask_cors import CORS
 import random
 import os
@@ -14,9 +13,6 @@ import time
 
 from polynoms import Polynomial  # Импортируем наш класс
 
-# --- Константы (можно вынести в отдельный файл constants.py если их много) ---
-# Возьмем из оригинального calc_and_draw_hdd.py, если они нужны для легенд
-# Если нет конкретных имен для L1-L14, можно использовать общие
 VARIABLES_DESCRIPTION = {
     str(i + 1): {"variable_name": f"L{i + 1}", "variable_title": f"Параметр L{i + 1}"}
     for i in range(14)
@@ -25,6 +21,25 @@ NUM_INTERNAL_POLYNOMIALS = (
     151  # Столько используется в dL_dx (functions[0]...functions[150])
 )
 NUM_EXTERNAL_Q_POLYNOMIALS = 5  # e1...e5, которые зависят от data["q"]
+
+# Глобальные переменные для имен L_i, если они нужны в _save_main_plot
+# Если они определены в JS, то в Python их нужно либо дублировать, либо передавать с клиента
+L_VARIABLE_NAMES = [  # Дублируем из JS для использования в легенде графика
+    "Скорость развертывания новых версий (Deployment Velocity)",
+    "Время восстановления после сбоя (Mean Time to Recovery - MTTR)",
+    "Уровень удовлетворенности пользователей (User Satisfaction Score)",
+    "Покрытие кода тестами (Test Coverage Percentage)",
+    "Количество критических уязвимостей (Critical Vulnerabilities Count)",
+    "Производительность под нагрузкой (Performance Under Load)",
+    "Масштабируемость системы (System Scalability)",
+    "Качество документации (Documentation Quality Score)",
+    "Простота интеграции с другими системами (Integration Simplicity)",
+    "Стоимость владения (Total Cost of Ownership - TCO)",
+    "Адаптивность к изменениям требований (Change Adaptability)",
+    "Уровень технического долга (Technical Debt Level)",
+    "Вовлеченность команды разработки (Developer Team Engagement)",
+    "Инновационный потенциал продукта (Product Innovation Potential)",
+]
 
 
 # --- Класс для расчетов и отрисовки ---
@@ -43,15 +58,14 @@ class CalculationService:
     ):
         print(
             f"--- Checking {len(poly_objects_list)} polynomials. Lower bound: {lower_bound}. Input range: {check_input_range[0]} to {check_input_range[-1]} ({len(check_input_range)} points) ---"
-        )  # ДОБАВЛЕНО
+        )
         for i, poly in enumerate(poly_objects_list):
-            # print(f"  Checking poly {i} with coeffs: {poly.coefficients}")
             for x_val in check_input_range:
                 poly_val = poly.calc(x_val)
                 if poly_val < lower_bound:
                     print(
                         f"  !!! Poly {i} (coeffs: {poly.coefficients}) FAILED: calc({x_val:.3f}) = {poly_val:.3f} < {lower_bound:.3f}"
-                    )  # ДОБАВЛЕНО/ИЗМЕНЕНО
+                    )
                     return False
             print(f"  Poly {i} (coeffs: {poly.coefficients}) PASSED.")  # ДОБАВЛЕНО
         print("--- All polynomials in set PASSED check. ---")  # ДОБАВЛЕНО
@@ -95,20 +109,22 @@ class CalculationService:
             user_f_poly_objects, poly_output_lower_bound, check_input_range
         ):
             self.internal_functions = user_f_poly_objects
-            print("User-provided internal coefficients are valid and will be used.")
+            final_f_coeffs_to_use = (
+                initial_f_coeffs  # Сохраняем для возврата, если они используются
+            )
+            print("User-provided internal coefficients are VALID and will be used.")
+            self.user_internal_polys_were_used = True
         else:
             print(
                 f"User-provided f_coeffs NOT valid. Starting random search for {NUM_INTERNAL_POLYNOMIALS} polys."
-            )  # ДОБАВЛЕНО
+            )
             print(
                 f"  Random coeff range for f_i: {internal_coeff_min_random} to {internal_coeff_max_random}"
-            )  # ДОБАВЛЕНО
-            print(
-                f"  f_i poly output lower bound: {poly_output_lower_bound}"
-            )  # ДОБАВЛЕНО
+            )
+            print(f"  f_i poly output lower bound: {poly_output_lower_bound}")
             print(
                 f"  Check input range for f_i: {check_input_range[0]:.2f} to {check_input_range[-1]:.2f} with {len(check_input_range)} points."
-            )  # ДОБАВЛЕНО
+            )
             found_valid_random_coeffs = False
             # Полиномы f_i всегда 3-й степени, т.е. 4 коэффициента
             num_coeffs_per_internal_poly = 4  # c0, c1, c2, c3
@@ -152,18 +168,175 @@ class CalculationService:
             args=(z_coeffs_for_e,),  # Передаем коэффициенты для z_i(t)
         )
 
-        # ... (нормализация Y_solution и сохранение графиков как раньше) ...
-        if not os.path.exists("images"):
-            os.makedirs("images")
+        # Убедись, что папка static/images существует
+        static_images_dir = os.path.join(
+            app.root_path, "static", "images"
+        )  # app.root_path это путь к папке с app.py
+        if not os.path.exists(static_images_dir):
+            os.makedirs(static_images_dir)
+
         timestamp = int(time.time())
-        plot_path_main = f"images/plot_main_{timestamp}.png"
-        self._save_main_plot(X_ode, Y_solution, plot_path_main)
+        # Путь для сохранения файла относительно корня проекта
+        plot_filename = f"plot_main_{timestamp}.png"
+        plot_save_path = os.path.join(static_images_dir, plot_filename)
+        self._save_main_plot(X_ode, Y_solution, plot_save_path)
+
+        # URL, который будет использоваться на клиенте
+        # Он будет указывать на эндпоинт Flask для статических файлов
+        plot_url_for_client = url_for("static", filename=f"images/{plot_filename}")
+
+        radar_plot_urls = []
+        num_L_variables = Y_solution.shape[1]
+
+        # Используем L_VARIABLE_NAMES_SERVER для меток
+        radar_labels = L_VARIABLE_NAMES[
+            :num_L_variables
+        ]  # Обрезаем, если переменных меньше
+
+        # Границы нормы для радаров - предполагаем, что они могут прийти с клиента
+        # В твоем HTML для "Кода 2" нет полей для "предельных значений" как в "Коде 1"
+        # Если хочешь рисовать линию границ, эти данные нужно как-то получить
+        # Например, из params["variable_limits"] или params["radar_max_values"]
+        # Для примера, пока поставим None
+        radar_max_values = params.get(
+            "variable_limits", None
+        )  # Ожидаем, что это список/массив
+        # из params, переданных из handle_calculate
+
+        time_slices_indices = [0, 4, 8, 12, 16, 20]  # t=0, 0.2, 0.4, 0.6, 0.8, 1.0
+
+        for i, sol_index in enumerate(time_slices_indices):
+            if sol_index < len(X_ode) and sol_index < len(Y_solution):
+                data_slice = Y_solution[sol_index, :]
+                slice_time = X_ode[sol_index]
+                radar_title = f"Срез L при t={slice_time:.1f}"
+
+                radar_filename = f"radar_plot_{i}_{timestamp}.png"
+                radar_save_path = os.path.join(static_images_dir, radar_filename)
+
+                current_radar_max_values = None
+                if radar_max_values and len(radar_max_values) == num_L_variables:
+                    current_radar_max_values = np.array(radar_max_values)
+
+                self._save_radar_plot(
+                    data_slice,
+                    radar_labels,
+                    current_radar_max_values,
+                    radar_title,
+                    radar_save_path,
+                )
+                radar_plot_urls.append(
+                    url_for("static", filename=f"images/{radar_filename}")
+                )
 
         return {
-            "main_plot_url": plot_path_main,
+            "main_plot_url": plot_url_for_client,
+            "radar_plot_urls": radar_plot_urls,
             "message": "Расчет успешно завершен.",
             "final_f_coeffs_snippet": [coeffs for coeffs in final_f_coeffs_to_use[:5]],
         }
+
+    def _save_radar_plot(
+        self, data_slice, labels, max_values_for_plot, title, save_path
+    ):
+        num_vars = len(labels)
+        angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
+        data_slice_closed = np.concatenate((data_slice, [data_slice[0]]))
+        angles_closed = angles + [angles[0]]
+
+        max_values_closed = None
+        if max_values_for_plot is not None:
+            if not isinstance(max_values_for_plot, np.ndarray):
+                max_values_for_plot = np.array(max_values_for_plot)
+            if len(max_values_for_plot) == num_vars:
+                max_values_closed = np.concatenate(
+                    (max_values_for_plot, [max_values_for_plot[0]])
+                )
+            else:
+                print(
+                    f"Radar Plot Warning: Length of max_values ({len(max_values_for_plot)}) != num_vars ({num_vars}). Not drawing max_values line."
+                )
+                max_values_for_plot = None
+
+        # --- ИСПРАВЛЕНИЯ ЦВЕТОВ НАЧИНАЮТСЯ ЗДЕСЬ ---
+        # Определим цвета, которые Matplotlib понимает
+        primary_plot_color = "#3B82F6"  # Синий (из твоего CSS var(--primary-color))
+        primary_fill_color = "#3B82F6"  # Тот же синий для заливки
+        norm_line_color = (
+            "#EF4444"  # Красный (из твоего CSS var(--error-color) для контраста)
+        )
+
+        # Цвета для фона и текста (если хочешь темную тему для сохраненных картинок)
+        # Для простоты пока оставим стандартный фон matplotlib (обычно белый)
+        # Но если нужно, можно установить:
+        # fig_face_color = '#374151' # var(--card-bg-color)
+        # ax_face_color = '#374151'  # var(--card-bg-color)
+        # text_color = '#F3F4F6'     # var(--text-color)
+        # muted_text_color = '#9CA3AF'# var(--muted-text-color)
+        # border_color = '#4B5563'   # var(--border-color)
+
+        fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+
+        # Если хочешь темный фон для картинки:
+        # fig.patch.set_facecolor(fig_face_color)
+        # ax.set_facecolor(ax_face_color)
+
+        ax.plot(
+            angles_closed,
+            data_slice_closed,
+            "o-",
+            linewidth=1.5,
+            color=primary_plot_color,
+            label="Текущие значения",
+        )
+        ax.fill(angles_closed, data_slice_closed, color=primary_fill_color, alpha=0.25)
+
+        if max_values_closed is not None:
+            ax.plot(
+                angles_closed,
+                max_values_closed,
+                "-",
+                linewidth=1,
+                color=norm_line_color,
+                label="Границы нормы",
+            )
+            # ax.fill(angles_closed, max_values_closed, color=norm_line_color, alpha=0.1) # Можно добавить заливку для границ
+
+        ax.set_xticks(angles)
+        ax.set_xticklabels(
+            labels, fontsize=7
+        )  # , color=text_color если используешь темный фон)
+
+        ax.set_yticks(np.arange(0, 1.01, 0.25))  # Деления до 1.0 включительно
+        ax.set_yticklabels(
+            [f"{tick:.2f}" for tick in np.arange(0, 1.01, 0.25)], fontsize=7
+        )  # , color=muted_text_color)
+        ax.set_ylim(0, 1.05)
+
+        ax.set_title(title, va="bottom", fontsize=10, y=1.1)  # , color=text_color)
+        ax.legend(
+            loc="lower center", bbox_to_anchor=(0.5, -0.25), ncol=2, fontsize=8
+        )  # Легенда под графиком
+
+        # Стилизация осей и сетки для темного фона (если используется)
+        # ax.tick_params(colors=muted_text_color)
+        # ax.spines['polar'].set_edgecolor(border_color)
+        ax.yaxis.grid(
+            True, linestyle="--", linewidth=0.5, alpha=0.7
+        )  # , color=border_color)
+        ax.xaxis.grid(
+            True, linestyle="--", linewidth=0.5, alpha=0.7
+        )  # , color=border_color)
+
+        plt.tight_layout()
+        # Если устанавливал fig_face_color, используй его при сохранении:
+        # plt.savefig(save_path, facecolor=fig.get_facecolor())
+        plt.savefig(
+            save_path
+        )  # Сохраняем со стандартным фоном (обычно белый или прозрачный)
+        plt.clf()
+        plt.close(fig)
+        print(f"Radar plot saved to {save_path}")
 
     def _solve_differential_equations(self, u_state, t, z_coeffs_for_e_functions):
         # ... (логика решения ДУ как раньше, но q_coeffs_for_e_functions теперь z_coeffs_for_e_functions)
@@ -444,13 +617,10 @@ class CalculationService:
         return dL
 
     def _save_main_plot(self, X, Y, save_path):
-        # ... (без изменений) ...
         plt.figure(figsize=(15, 8))
         plt.xlabel("Время")
         plt.ylabel("Значения параметров модели")
         num_lines = Y.shape[1]
-        # colors = cm.get_cmap('tab20', num_lines) # tab20 может не иметь достаточно цветов для >20
-        # Используем cm.rainbow или cm.viridis если линий много
         if num_lines <= 20:
             colors = cm.get_cmap("tab20", num_lines)
         else:
@@ -458,14 +628,11 @@ class CalculationService:
 
         for i in range(num_lines):
             var_key = str(i + 1)
-            # Используем L_VARIABLE_NAMES из глобальной области, если они есть, или дефолтные
             label_name = (
                 L_VARIABLE_NAMES[i] if i < len(L_VARIABLE_NAMES) else f"L{i + 1}"
             )
 
-            plt.plot(
-                X, Y[:, i], label=label_name, color=colors(i / float(num_lines))
-            )  # Нормализуем индекс для cmap
+            plt.plot(X, Y[:, i], label=label_name, color=colors(i / float(num_lines)))
 
         plt.legend(
             bbox_to_anchor=(1.05, 1),
@@ -473,9 +640,7 @@ class CalculationService:
             borderaxespad=0.0,
             fontsize="small",
         )
-        plt.tight_layout(
-            rect=[0, 0, 0.80, 1]
-        )  # Оставляем больше места для длинных легенд
+        plt.tight_layout(rect=[0, 0, 0.80, 1])
         plt.savefig(save_path)
         plt.clf()
         plt.close()
@@ -486,25 +651,6 @@ class CalculationService:
 app = Flask(__name__)
 CORS(app)
 calculation_service = CalculationService()
-
-# Глобальные переменные для имен L_i, если они нужны в _save_main_plot
-# Если они определены в JS, то в Python их нужно либо дублировать, либо передавать с клиента
-L_VARIABLE_NAMES = [  # Дублируем из JS для использования в легенде графика
-    "Эффективность функционирования хранилища данных",
-    "Качество программного обеспечения (ПО)",
-    "Корректность ПО",
-    "Надежность программного обеспечения",
-    "Доступность программного обеспечения",
-    "Возможность интенсивного использования ПО",
-    "Прослеживаемость ПО",
-    "Функциональная полнота ПО",
-    "Обеспечение требуемой последовательности работ при проектировании хранилища",
-    "Практичность ПО",
-    "Устойчивость к ошибкам данных программного обеспечения",
-    "Эффективность выполнения транзакций",
-    "Степень мотивации персонала, осуществляющего эксплуатацию хранилища данных",
-    "Удобство тестирования ПО",
-]
 
 
 @app.route("/")
@@ -520,6 +666,8 @@ def index():
 def handle_calculate():
     try:
         data = request.json
+
+        variable_limits_from_client = data.get("l_limits", [])
 
         params_for_service = {
             "start_conditions": [float(x) for x in data.get("start_conditions", [])],
@@ -551,8 +699,8 @@ def handle_calculate():
             "internal_poly_check_granularity": int(
                 data.get("internal_poly_check_granularity", 10)
             ),
+            "variable_limits": variable_limits_from_client,
         }
-        # Добавить валидацию входных данных здесь (количество элементов, типы и т.д.)
 
         results = calculation_service.calculate_and_draw(params_for_service)
         return jsonify(results)
@@ -566,11 +714,7 @@ def handle_calculate():
 
 
 if __name__ == "__main__":
-    # ... (логирование и app.run как раньше) ...
     import logging
 
     logging.basicConfig(level=logging.INFO)
-    # handler = logging.FileHandler('flask_app.log') # Логи в файл
-    # handler.setLevel(logging.INFO)
-    # app.logger.addHandler(handler) # Закомментировал, чтобы не создавать файл без необходимости
     app.run(debug=True, host="0.0.0.0", port=9090)

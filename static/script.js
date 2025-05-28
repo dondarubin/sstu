@@ -2,6 +2,12 @@ document.addEventListener("DOMContentLoaded", function () {
 	const variablesTableBody = document.querySelector("#variablesTable tbody");
 	const fFunctionsTableBody = document.querySelector("#fFunctionsTable tbody");
 	const zFunctionsTableBody = document.querySelector("#zFunctionsTable tbody");
+	const fillRandomVariablesButton = document.getElementById(
+		"fillRandomVariablesButton"
+	);
+	const radarContainer = document.getElementById("radarChartsContainer");
+	const fillRandomFButton = document.getElementById("fillRandomFButton");
+	const fillRandomZButton = document.getElementById("fillRandomZButton");
 
 	const calculateButton = document.getElementById("calculateButton");
 	const saveJsonButton = document.getElementById("saveJsonButton");
@@ -15,6 +21,124 @@ document.addEventListener("DOMContentLoaded", function () {
 
 	const DEFAULT_COEFF_VALUE = 0; // Для полиномов
 	const DEFAULT_L_START_VALUE = 0.1;
+
+	function fillRandomVariables() {
+		for (let i = 0; i < NUM_L_VARIABLES; i++) {
+			const startInputEl = document.getElementById(`l_start_${i}`);
+			const limitInputEl = document.getElementById(`l_limit_${i}`); // Если нужно заполнять
+			const minInputEl = document.getElementById(`l_min_${i}`); // Если нужно заполнять
+
+			if (startInputEl) {
+				startInputEl.value = (Math.random() * 0.8 + 0.1).toFixed(2); // Диапазон 0.1 - 0.9
+			}
+			if (limitInputEl) {
+				// Пример заполнения, можно настроить логику
+				let startVal = startInputEl ? parseFloat(startInputEl.value) : 0.5;
+				limitInputEl.value = (
+					startVal +
+					Math.random() * (1 - startVal)
+				).toFixed(2); // Больше startVal, но <= 1
+			}
+			if (minInputEl) {
+				// Пример
+				let startVal = startInputEl ? parseFloat(startInputEl.value) : 0.5;
+				minInputEl.value = (Math.random() * startVal).toFixed(2); // Меньше startVal, но >= 0
+			}
+		}
+		console.log("Переменные L_i заполнены случайными значениями.");
+		// Можно добавить сообщение для пользователя, если statusMessageEl доступен и это нужно
+		// statusMessageEl.textContent = "Параметры модели L_i заполнены случайными значениями.";
+		// statusMessageEl.className = "status success";
+		// resultsArea.style.display = "block"; // Возможно, не нужно показывать результаты сразу
+	}
+
+	function fillRandomFCoeffs() {
+		// Диапазоны для коэффициентов f_i
+		// Можно сделать их настраиваемыми или взять из полей "Параметры Проверки и Генерации", если это уместно
+		const coeffMin =
+			parseFloat(document.getElementById("internal_coeff_min_random").value) ||
+			-0.5;
+		const coeffMax =
+			parseFloat(document.getElementById("internal_coeff_max_random").value) ||
+			0.5;
+
+		for (let i = 0; i < NUM_F_FUNCTIONS; i++) {
+			for (let j = 3; j >= 0; j--) {
+				// c3, c2, c1, c0
+				const inputEl = document.getElementById(`f_coeff_${i}_c${j}`);
+				if (inputEl) {
+					inputEl.value = (
+						Math.random() * (coeffMax - coeffMin) +
+						coeffMin
+					).toFixed(2); // 2 знака после запятой
+				}
+			}
+		}
+		console.log("Коэффициенты функций f_i заполнены случайными значениями.");
+	}
+
+	function fillRandomZCoeffs() {
+		// Диапазоны для коэффициентов z_i (могут отличаться от f_i)
+		const coeffMin = -0.3; // Пример
+		const coeffMax = 0.3; // Пример
+
+		for (let i = 0; i < NUM_Z_FUNCTIONS; i++) {
+			for (let j = 3; j >= 0; j--) {
+				// c3, c2, c1, c0
+				const inputEl = document.getElementById(`z_coeff_${i}_c${j}`);
+				if (inputEl) {
+					inputEl.value = (
+						Math.random() * (coeffMax - coeffMin) +
+						coeffMin
+					).toFixed(2);
+				}
+			}
+		}
+		console.log("Коэффициенты функций z_i заполнены случайными значениями.");
+	}
+
+	if (fillRandomVariablesButton) {
+		fillRandomVariablesButton.addEventListener("click", function () {
+			fillRandomVariables();
+			// Опционально: обновить сообщение для пользователя
+			statusMessageEl.textContent =
+				"Параметры модели L_i заполнены случайными значениями.";
+			statusMessageEl.className = "status success"; // Используйте ваш класс для успеха
+			resultsArea.style.display = "block"; // Показать секцию результатов, чтобы было видно сообщение
+			mainPlotImg.style.display = "none"; // Скрыть предыдущие графики
+			coeffsInfoEl.textContent = ""; // Очистить инфо о коэффициентах
+			const radarContainer = document.getElementById("radarChartsContainer");
+			if (radarContainer) radarContainer.innerHTML = "";
+		});
+	}
+
+	if (fillRandomFButton) {
+		fillRandomFButton.addEventListener("click", function () {
+			fillRandomFCoeffs();
+			statusMessageEl.textContent =
+				"Внутренние функции f_i заполнены случайными значениями.";
+			statusMessageEl.className = "status success";
+			resultsArea.style.display = "block";
+			mainPlotImg.style.display = "none";
+			coeffsInfoEl.textContent = "";
+			const radarContainer = document.getElementById("radarChartsContainer");
+			if (radarContainer) radarContainer.innerHTML = "";
+		});
+	}
+
+	if (fillRandomZButton) {
+		fillRandomZButton.addEventListener("click", function () {
+			fillRandomZCoeffs();
+			statusMessageEl.textContent =
+				"Внешние факторы z_i заполнены случайными значениями.";
+			statusMessageEl.className = "status success";
+			resultsArea.style.display = "block";
+			mainPlotImg.style.display = "none";
+			coeffsInfoEl.textContent = "";
+			const radarContainer = document.getElementById("radarChartsContainer");
+			if (radarContainer) radarContainer.innerHTML = "";
+		});
+	}
 
 	// --- Генерация таблиц ---
 	function createInputField(
@@ -127,6 +251,15 @@ document.addEventListener("DOMContentLoaded", function () {
 			const f_coeffs = getTableData(NUM_F_FUNCTIONS, "f", numCoeffsPerPoly);
 			const z_coeffs = getTableData(NUM_Z_FUNCTIONS, "z", numCoeffsPerPoly);
 
+			const l_limits_payload = [];
+			for (let i = 0; i < NUM_L_VARIABLES; i++) {
+				const limitInputEl = document.getElementById(`l_limit_${i}`);
+				// Убедись, что дефолтное значение разумное, если поле пустое или некорректное
+				l_limits_payload.push(
+					limitInputEl ? parseFloat(limitInputEl.value) || 1.0 : 1.0
+				);
+			}
+
 			const payload = {
 				start_conditions: start_conditions,
 				// Внутренние полиномы (f_i), которые пользователь ввел.
@@ -134,6 +267,7 @@ document.addEventListener("DOMContentLoaded", function () {
 				initial_f_coeffs: f_coeffs,
 				// Внешние полиномы (z_i), которые я раньше называл q_coeffs
 				z_coeffs: z_coeffs,
+				l_limits: l_limits_payload,
 
 				// Параметры для проверки и генерации f_coeffs (если initial_f_coeffs не пройдут)
 				poly_output_lower_bound: parseFloat(
@@ -176,6 +310,16 @@ document.addEventListener("DOMContentLoaded", function () {
 							result.main_plot_url + "?t=" + new Date().getTime();
 						mainPlotImg.style.display = "block";
 					}
+					if (result.radar_plot_urls) {
+						radarContainer.innerHTML = "";
+						result.radar_plot_urls.forEach(radarUrl => {
+							const img = document.createElement("img");
+							img.src = radarUrl + "?t=" + new Date().getTime();
+							img.alt = "Лепестковая диаграмма";
+							radarContainer.appendChild(img);
+						});
+					}
+
 					if (result.final_f_coeffs_snippet) {
 						// Изменено имя поля
 						coeffsInfoEl.innerHTML = `<b>Пример финальных коэффициентов для первых 5 внутренних полиномов (f_i):</b><br> ${JSON.stringify(
