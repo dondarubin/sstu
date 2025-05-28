@@ -2,6 +2,7 @@ document.addEventListener("DOMContentLoaded", function () {
 	const variablesTableBody = document.querySelector("#variablesTable tbody");
 	const fFunctionsTableBody = document.querySelector("#fFunctionsTable tbody");
 	const zFunctionsTableBody = document.querySelector("#zFunctionsTable tbody");
+	const loaderContainer = document.getElementById("loaderContainer"); // Новый элемент
 	const fillRandomVariablesButton = document.getElementById(
 		"fillRandomVariablesButton"
 	);
@@ -21,6 +22,41 @@ document.addEventListener("DOMContentLoaded", function () {
 
 	const DEFAULT_COEFF_VALUE = 0; // Для полиномов
 	const DEFAULT_L_START_VALUE = 0.1;
+
+	function showLoader() {
+		if (loaderContainer) loaderContainer.style.display = "flex";
+		if (calculateButton) {
+			calculateButton.disabled = true;
+			// calculateButton.classList.add("loading"); // Если есть спец. стиль для кнопки в загрузке
+			calculateButton.textContent = "Расчет..."; // Меняем текст кнопки
+		}
+		fillButtons.forEach(button => {
+			if (button) button.disabled = true;
+		});
+		// Скрываем предыдущие результаты
+		mainPlotImg.style.display = "none";
+		coeffsInfoEl.textContent = "";
+		const radarContainer = document.getElementById("radarChartsContainer");
+		if (radarContainer) radarContainer.innerHTML = "";
+		statusMessageEl.textContent = ""; // Очищаем старое статусное сообщение
+		statusMessageEl.className = "status";
+	}
+
+	function hideLoader(isError = false) {
+		if (loaderContainer) loaderContainer.style.display = "none";
+		if (calculateButton) {
+			calculateButton.disabled = false;
+			// calculateButton.classList.remove("loading");
+			calculateButton.textContent = "Рассчитать"; // Возвращаем исходный текст
+		}
+		fillButtons.forEach(button => {
+			if (button) button.disabled = false;
+		});
+		if (!isError) {
+			// Если не было ошибки, можно показать resultsArea
+			resultsArea.style.display = "block";
+		}
+	}
 
 	function fillRandomVariables() {
 		for (let i = 0; i < NUM_L_VARIABLES; i++) {
@@ -230,6 +266,7 @@ document.addEventListener("DOMContentLoaded", function () {
 	// --- Обработчики кнопок ---
 	if (calculateButton) {
 		calculateButton.addEventListener("click", async function () {
+			showLoader(); 
 			calculateButton.disabled = true;
 			statusMessageEl.textContent =
 				"Выполняется расчет... Пожалуйста, подождите.";
@@ -303,6 +340,7 @@ document.addEventListener("DOMContentLoaded", function () {
 				const result = await response.json();
 
 				if (response.ok) {
+					hideLoader(false);
 					statusMessageEl.textContent = result.message || "Расчет завершен!";
 					statusMessageEl.className = "status success";
 					if (result.main_plot_url) {
@@ -327,12 +365,14 @@ document.addEventListener("DOMContentLoaded", function () {
 						)}`;
 					}
 				} else {
+					hideLoader(true);
 					statusMessageEl.textContent =
 						"Ошибка сервера: " +
 						(result.error || response.statusText || "Неизвестная ошибка");
 					statusMessageEl.className = "status error";
 				}
 			} catch (error) {
+				hideLoader(true);
 				statusMessageEl.textContent =
 					"Сетевая ошибка или ошибка клиента: " + error.message;
 				statusMessageEl.className = "status error";

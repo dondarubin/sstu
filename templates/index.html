@@ -174,15 +174,25 @@
 				</div>
 			</div>
 
-			<div class="control-buttons">
-				<button id="fillRandomVariablesButton">Случ. L<sub>i</sub></button>
-				<button id="fillRandomFButton">Случ. f<sub>i</sub></button>
-				<button id="fillRandomZButton">Случ. z<sub>i</sub></button>
-				<button id="calculateButton" class="action-button">Рассчитать</button>
+			<div class="controls-and-loader-container">
+				<div class="control-buttons">
+					<button id="fillRandomVariablesButton">Случ. L<sub>i</sub></button>
+					<button id="fillRandomFButton">Случ. f<sub>i</sub></button>
+					<button id="fillRandomZButton">Случ. z<sub>i</sub></button>
+					<button id="calculateButton" class="action-button">Рассчитать</button>
+				</div>
 			</div>
 
 			<div class="results-section" id="resultsArea" style="display: none">
 				<h2>Результаты Моделирования</h2>
+				<div
+					class="loader-container"
+					id="loaderContainer"
+					style="display: none"
+				>
+					<div class="loader"></div>
+					<p>Выполняется расчет...</p>
+				</div>
 				<p id="statusMessage" class="status"></p>
 				<div class="image-display">
 					<img
